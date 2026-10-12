@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Fluid Boundary Approximator</title>
+  <meta name="description" content="Least squares curve fits of a fluid boundary, cell by cell, using the normal equations.">
+  <link rel="stylesheet" href="css/styles.css">
+  <script type="module" src="js/app.js"></script>
+</head>
+<body>
+  <header class="page-header">
+    <h1>Fluid Boundary Approximator</h1>
+    <p class="lede">
+      104 marker points trace a fluid boundary through 10 mesh cells. In each cell, four curves are fitted
+      to the points with linear least squares using the normal equations. The lowest-error curve from
+      each cell is stitched together to reconstruct the boundary.
+    </p>
+  </header>
+
+  <main>
+    <nav class="cell-picker" aria-label="Choose a cell">
+      <span class="picker-label">Cell</span>
+      <div class="chips" id="cell-chips"></div>
+    </nav>
+
+    <div class="layout">
+      <section class="card" aria-labelledby="overview-title">
+        <div class="card-head">
+          <h2 id="overview-title">Reconstructed boundary</h2>
+          <p class="sub">Best-fitting curve in each cell. Click a cell to inspect it.</p>
+        </div>
+        <ul class="legend" aria-label="Legend">
+          <li><span class="key key-dot"></span>Marker points</li>
+          <li><span class="key key-line" style="--key: var(--series-1)"></span>Best fit per cell</li>
+        </ul>
+        <div class="chart-wrap" id="overview"></div>
+      </section>
+
+      <section class="card" aria-labelledby="detail-title">
+        <div class="card-head">
+          <h2 id="detail-title">Cell</h2>
+          <p class="sub" id="detail-summary"></p>
+        </div>
+        <ul class="legend toggles" id="model-toggles" aria-label="Show or hide models"></ul>
+        <div class="chart-wrap" id="detail"></div>
+        <p class="footnote">Zoomed to the cell's points, with x and y scaled separately. Hover a point to see its residuals.</p>
+        <div class="table-wrap">
+          <table class="results">
+            <caption>Fits for the selected cell, computed in your browser</caption>
+            <thead>
+              <tr>
+                <th scope="col">Model</th>
+                <th scope="col">Fitted equation</th>
+                <th scope="col" class="num">Squared error</th>
+                <th scope="col" class="num">cond(A)</th>
+                <th scope="col" class="num">cond(AᵀA)</th>
+              </tr>
+            </thead>
+            <tbody id="results-body"></tbody>
+          </table>
+        </div>
+        <p class="footnote" id="precision-note" hidden>
+          ⚠ marks a fit where cond(AᵀA) is beyond what double precision can resolve
+          (about 4.5 × 10¹⁵), so its coefficients are unreliable.
+        </p>
+      </section>
+    </div>
+
+    <section class="card explainer" aria-labelledby="how-title">
+      <h2 id="how-title">How it works</h2>
+      <p>
+        Each model is written as an overdetermined system <code>A·x = b</code>, where every column of
+        <code>A</code> is a basis function evaluated at the cell's points, and solved with the normal
+        equations <code>x = (AᵀA)⁻¹Aᵀb</code>.
+      </p>
+      <ul>
+        <li><strong>Line:</strong> <code>y = mx + q</code></li>
+        <li><strong>Parabola:</strong> <code>y = ax² + bx + c</code></li>
+        <li><strong>Cubic:</strong> <code>y = ax³ + bx² + cx + d</code></li>
+        <li><strong>Rotated parabola:</strong> <code>x = ay² + by + c</code>, the parabola with x and y swapped, which can follow nearly vertical stretches of the boundary</li>
+      </ul>
+      <p>
+        The squared error is the sum of the squared residuals, <code>Σ(b − A·x)²</code>. Because
+        <code>cond(AᵀA) = cond(A)²</code>, forming <code>AᵀA</code> squares the conditioning of the
+        problem. Inside one small cell the x values are close together, so the cubic's columns
+        <code>1, x, x², x³</code> are nearly parallel and <code>cond(AᵀA)</code> reaches about
+        10¹⁷. In cells 48 and 55, the original MATLAB script's <code>inv(AᵀA)</code> produced cubic
+        errors larger than the parabola's, which is impossible in exact arithmetic since every
+        parabola is also a cubic. This page solves the normal equations with Gaussian elimination
+        and partial pivoting, which stays within 0.05% of a stable QR solution for those cells.
+      </p>
+      <p class="source">
+        The original MATLAB implementation is in the
+        <a href="https://github.com/joshduplaa/fluid-boundaryApp/tree/main/matlab">matlab folder</a>
+        of this repository.
+      </p>
+    </section>
+  </main>
+
+  <div class="tooltip" id="tooltip" role="status" hidden></div>
+</body>
+</html>
